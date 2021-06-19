@@ -20,7 +20,7 @@ docker compose -f ./docker-compose.yml up
 ```
 ### Building and starting the application
 ```shell
-./mvnw clean package
+./mvnw compile exec:java -Dexec.mainClass="com.github.programmingwithmati.kafka.streams.wordcount.WordCountApp"
 ```
 ### Publishing a message and consuming the results
 1. we need to connect to the docker container to run commands on a CLI:
@@ -34,7 +34,7 @@ kafka-console-consumer --topic word-count --bootstrap-server localhost:9092 \
  --property print.key=true \
  --property key.separator=" : " \
  --key-deserializer "org.apache.kafka.common.serialization.StringDeserializer" \
- --value-deserializer "org.apache.kafka.common.serialization.IntegerDeserializer"
+ --value-deserializer "org.apache.kafka.common.serialization.LongDeserializer"
 ```
 3. Open a new terminal and connect again to the kafka docker container:
 ```shell
@@ -58,3 +58,13 @@ hello : 2
 world : 1
 ```
 What you see is the words that we inserted in step 5, followed by the amount of times that word was processed. That's why the word `hello` appears twice.
+
+## Understanding the Topology
+![Topology](docs/topology.png)
+1️⃣ **Flat Map** operation to map 1 record into many. In our case, every sentences is mapped into multiple records: one for each word in the sentence. Also the case is lowered to make the process case-insensitive.
+
+2️⃣ **Group By** the stream selecting a grouping key. In our case, the word. This will always return grouped stream, prepared to be aggregated. It will also trigger an operation called **repartition**. We will learn more about this later.
+
+3️⃣ **Count** every appearance of the key in the stream. This will be stored in a **data store**.
+
+Finally, we stream the results into the topic `word-count`. We can stream a table using the method `toStream`, which will stream the latest value that was stored for a given key, everytime that key is updated.
